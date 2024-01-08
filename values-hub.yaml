@@ -8,6 +8,8 @@ clusterGroup:
     - golang-external-secrets
     - config-demo
     - hello-world
+    - openshift-nfd
+    - amx-app
 
   subscriptions:
     acm:
@@ -16,10 +18,18 @@ clusterGroup:
       channel: release-2.8
       #csv: advanced-cluster-management.v2.6.1
 
+    nfd:
+      name: nfd
+      namespace: openshift-nfd
+      channel: stable
+      source: redhat-operators
+
   projects:
     - hub
     - config-demo
     - hello-world
+    - openshift-nfd
+    - amx-app
 
   # Explicitly mention the cluster-state based overrides we plan to use for this pattern.
   # We can use self-referential variables because the chart calls the tpl function with these variables defined
@@ -78,6 +88,18 @@ clusterGroup:
       namespace: hello-world
       project: hello-world
       path: charts/all/hello-world
+    
+    amx-app:
+      name: amx-app
+      namespace: amx-app
+      project: amx-app
+      path: charts/all/amx-app
+
+    nfd:
+      name: nfd
+      namespace: openshift-nfd
+      project: openshift-nfd
+      path: charts/all/nfd
 
   imperative:
     # NOTE: We *must* use lists and not hashes. As hashes lose ordering once parsed by helm
