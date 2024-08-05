@@ -1,0 +1,136 @@
+---
+# Source: amx-app/templates/dataset-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dataset-pvc
+  namespace: amx-app
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  volumeMode: Filesystem
+---
+# Source: amx-app/templates/anyuid-scc-role.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: anyuid-scc-role
+rules:
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - anyuid
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+---
+# Source: amx-app/templates/anyuid-scc-rolebinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: anyuid-scc-rolebinding
+  namespace: amx-app
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: amx-app
+roleRef:
+  kind: ClusterRole
+  name: anyuid-scc-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: amx-app/templates/amx-app-deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: amx-app
+  namespace: amx-app
+  labels:
+    application: amx-app
+    argocd.argoproj.io/instance: amx-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      deploymentconfig: amx-app
+  template:
+    metadata:
+      name: amx-app
+      creationTimestamp: null
+      labels:
+        app: amx-app
+        deploymentconfig: amx-app
+    spec:
+      nodeSelector:
+        feature.node.kubernetes.io/cpu-cpuid.AMXBF16: 'true'
+      volumes:
+        - name: dataset
+          persistentVolumeClaim:
+            claimName: dataset-pvc
+      initContainers:
+        - name: download-datasets
+          image: 'registry.redhat.io/rhel9/python-39:latest'
+          command:
+            - /bin/bash
+            - '-c'
+            - >-
+              apt install wget zip -y; wget
+              https://zenodo.org/record/3463683/files/data.tar.gz; tar -jxvf
+              data.tar.gz; mv data/* /tmp/dataset/; rm -Rf data.tar.gz; wget
+              https://zenodo.org/record/3463683/files/data1.tar.gz; tar -jxvf
+              data1.tar.gz; mv data1/* /tmp/dataset/; rm -Rf data1.tar.gz; wget
+              https://zenodo.org/record/3463683/files/data2.tar.gz; tar -jxvf
+              data2.tar.gz; mv data2/* /tmp/dataset/; rm -Rf data2.tar.gz;
+          resources: {}
+          volumeMounts:
+            - name: dataset
+              mountPath: /tmp/dataset
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      containers:
+        - resources: {}
+          terminationMessagePath: /dev/termination-log
+          name: run-inference
+          env:
+            - name: DATASET_DIR
+              value: /tmp/dataset
+            - name: OUTPUT_DIR
+              value: /tmp/logs
+            - name: SCRIPT
+              value: accuracy.sh
+            - name: PRECISION
+              value: bfloat16
+            - name: ONEDNN_VERBOSE_TIMESTAMP
+              value: '1'
+            - name: ONEDNN_VERBOSE
+              value: '1'
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: dataset
+              readOnly: true
+              mountPath: /tmp/dataset
+          terminationMessagePolicy: File
+          image: 'intel/recommendation:tf-spr-dien-inference'
+          args:
+            - /bin/bash
+            - '-c'
+            - /bin/bash quickstart/$(SCRIPT); sleep 24h
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
