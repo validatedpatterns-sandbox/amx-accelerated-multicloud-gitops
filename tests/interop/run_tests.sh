@@ -1,7 +1,6 @@
 #!/usr/bin/bash
 
 export EXTERNAL_TEST="true"
-export WORKSPACE=/tmp
 
 if [ -z "${KUBECONFIG}" ]; then
     echo "No kubeconfig file set for hub cluster"
@@ -13,10 +12,14 @@ if [ -z "${KUBECONFIG_EDGE}" ]; then
     exit 1
 fi
 
-pytest -lv --disable-warnings test_subscription_status_hub.py --kubeconfig $KUBECONFIG --junit-xml /tmp/test_subscription_status_hub.xml
+if [ -z "${WORKSPACE}" ]; then
+    export WORKSPACE=/tmp
+fi
 
-pytest -lv --disable-warnings test_subscription_status_edge.py --kubeconfig $KUBECONFIG_EDGE --junit-xml /tmp/test_subscription_status_edge.xml
+pytest -lv --disable-warnings test_subscription_status_hub.py --kubeconfig $KUBECONFIG --junit-xml $WORKSPACE/test_subscription_status_hub.xml
 
-pytest -lv --disable-warnings test_validate_hub_site_components.py --kubeconfig $KUBECONFIG --junit-xml /tmp/test_validate_hub_site_components.xml
+pytest -lv --disable-warnings test_subscription_status_edge.py --kubeconfig $KUBECONFIG_EDGE --junit-xml $WORKSPACE/test_subscription_status_edge.xml
 
-KUBECONFIG=$KUBECONFIG_EDGE pytest -lv --disable-warnings test_validate_edge_site_components.py --kubeconfig $KUBECONFIG_EDGE --junit-xml /tmp/test_validate_edge_site_components.xml
+pytest -lv --disable-warnings test_validate_hub_site_components.py --kubeconfig $KUBECONFIG --junit-xml $WORKSPACE/test_validate_hub_site_components.xml
+
+KUBECONFIG=$KUBECONFIG_EDGE pytest -lv --disable-warnings test_validate_edge_site_components.py --kubeconfig $KUBECONFIG_EDGE --junit-xml $WORKSPACE/test_validate_edge_site_components.xml

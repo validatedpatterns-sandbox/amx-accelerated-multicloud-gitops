@@ -69,8 +69,8 @@ def test_subscription_status_hub(openshift_dyn_client):
         except Exception:
             pass
 
-        previouspath = os.getcwd() + f"/operator-versions/mcgitops_hub_{shortversion}"
-        previousfile = f"mcgitops_hub_{shortversion}"
+        previouspath = os.getcwd() + f"/operator-versions/mcgitopsamx_hub_{shortversion}"
+        previousfile = f"mcgitopsamx_hub_{shortversion}"
 
         logger.info("Ensure previous file exists")
         checkpath = os.path.exists(previouspath)
